@@ -1,0 +1,10 @@
+go 1.26.3
+
+use (
+	./pkg
+	./services/dme-service
+	./services/gateway
+	./services/rnav-service
+	./services/simulation-service
+	./tests
+)

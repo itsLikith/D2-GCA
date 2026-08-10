@@ -1,0 +1,84 @@
+services:
+  prism_nginx:
+    build: ./src/proxy
+    ports:
+      - "80:80"
+    networks:
+      - prism_network
+    container_name: prism_nginx
+    depends_on:
+      - prism_gateway
+      - prism_client
+      - prism_postgres_db
+
+  prism_client:
+    build: ./src/client
+    networks:
+      - prism_network
+    container_name: prism_client
+
+  prism_postgres_db:
+    build: ./src/database
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: stations_db
+    ports:
+      - "5432:5432"
+    networks:
+      - prism_network
+    container_name: prism_postgres_db
+
+  prism_dme_service:
+    build:
+      context: ./src/server
+      dockerfile: ./services/dme-service/Dockerfile
+    environment:
+      - PORT=8081
+      - DATABASE_URL=postgres://postgres:postgres@prism_postgres_db:5432/stations_db?sslmode=disable
+    networks:
+      - prism_network
+    container_name: prism_dme_service
+    depends_on:
+      - prism_postgres_db
+
+  prism_rnav_service:
+    build:
+      context: ./src/server
+      dockerfile: ./services/rnav-service/Dockerfile
+    environment:
+      - PORT=8080
+    networks:
+      - prism_network
+    container_name: prism_rnav_service
+
+  prism_simulation_service:
+    build:
+      context: ./src/server
+      dockerfile: ./services/simulation-service/Dockerfile
+    environment:
+      - PORT=8082
+    networks:
+      - prism_network
+    container_name: prism_simulation_service
+
+  prism_gateway:
+    build:
+      context: ./src/server
+      dockerfile: ./services/gateway/Dockerfile
+    environment:
+      - PORT=8000
+      - DME_SERVICE_URL=http://prism_dme_service:8081
+      - RNAV_SERVICE_URL=http://prism_rnav_service:8080
+      - SIMULATION_SERVICE_URL=http://prism_simulation_service:8082
+    networks:
+      - prism_network
+    container_name: prism_gateway
+    depends_on:
+      - prism_dme_service
+      - prism_rnav_service
+      - prism_simulation_service
+
+networks:
+  prism_network:
+    driver: bridge
